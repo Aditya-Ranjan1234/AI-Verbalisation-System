@@ -11,26 +11,36 @@ from .config import settings
 
 # PostgreSQL Setup
 # Convert postgresql:// to postgresql+asyncpg:// for async support
-database_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+database_url = settings.DATABASE_URL or settings.POSTGRES_URL
+if database_url:
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
 
-engine = create_async_engine(
-    database_url,
-    echo=settings.DEBUG,
-    future=True
-)
-
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
+if database_url:
+    engine = create_async_engine(
+        database_url,
+        echo=settings.DEBUG,
+        future=True
+    )
+    
+    async_session_maker = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+else:
+    engine = None
+    async_session_maker = None
 
 # SQLAlchemy Base for ORM models
 Base = declarative_base()
 
 # MongoDB Setup
-mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
-mongodb = mongodb_client.trip_verbalization
+mongodb_client = None
+mongodb = None
+
+if settings.MONGODB_URL:
+    mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
+    mongodb = mongodb_client.trip_verbalization
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -38,6 +48,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     Dependency for FastAPI to get async database session
     Usage: db: AsyncSession = Depends(get_db)
     """
+    if not async_session_maker:
+        raise RuntimeError("Database URL not configured")
+        
     async with async_session_maker() as session:
         try:
             yield session
@@ -59,6 +72,9 @@ async def get_mongo_db():
 
 async def init_db():
     """Initialize database tables"""
+    if not engine:
+        return
+        
     async with engine.begin() as conn:
         # Import all models before creating tables
         from . import models

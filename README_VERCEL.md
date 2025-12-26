@@ -1,64 +1,64 @@
-# Hosting on Vercel
+# Hosting on Vercel with Supabase & MongoDB Atlas
 
-This project is configured for deployment on Vercel.
+This project is configured for deployment on Vercel, using **Supabase** for the relational database (PostgreSQL) and **MongoDB Atlas** for the NoSQL database.
 
-## Prerequisites
+## 1. Deploy Code
 
-1.  **GitHub Account**: Your code must be pushed to a GitHub repository.
-2.  **Vercel Account**: Sign up at [vercel.com](https://vercel.com) using your GitHub account.
-3.  **Database Services**:
-    *   **PostgreSQL**: You need a hosted PostgreSQL database (e.g., [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Render](https://render.com)).
-    *   **MongoDB**: You need a hosted MongoDB database (e.g., [MongoDB Atlas](https://www.mongodb.com/atlas)).
+1.  Push your code to GitHub.
+2.  Import the project in Vercel.
+3.  Deploy. (The build might fail initially if environment variables are missing; this is normal).
 
-## Deployment Steps
+## 2. Set Up Supabase (PostgreSQL)
 
-### 1. Push Code to GitHub
+Since you are using Supabase for the PostgreSQL database:
 
-Initialize git (if not done) and push your code:
+1.  **Create Project**: Go to [Supabase](https://supabase.com/) and create a new project.
+2.  **Enable PostGIS**:
+    *   Go to the **SQL Editor** in the left sidebar.
+    *   Click **New Query**.
+    *   Run: `CREATE EXTENSION IF NOT EXISTS postgis;`
+    *   Click **Run**.
+3.  **Get Connection String**:
+    *   Go to **Project Settings** (gear icon) -> **Database**.
+    *   Under **Connection string**, make sure **URI** is selected.
+    *   Copy the connection string. It looks like: `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`.
+    *   *Tip*: Use the "Transaction" pooler (port 6543) if available, or "Session" (port 5432) if you encounter issues. For this async Python app, the standard connection string often works best.
+4.  **Add to Vercel**:
+    *   Go to your Vercel Project Dashboard -> **Settings** -> **Environment Variables**.
+    *   Add a new variable named `DATABASE_URL`.
+    *   Paste your Supabase connection string as the value (replace `[password]` with your actual database password).
 
-```bash
-git init
-git add .
-git commit -m "Initial commit for Vercel deployment"
-# Add your remote origin
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-git push -u origin main
-```
+## 3. Set Up MongoDB Atlas
 
-### 2. Import Project in Vercel
+Since you are using MongoDB Atlas:
 
-1.  Go to your Vercel Dashboard.
-2.  Click **"Add New..."** -> **"Project"**.
-3.  Import your GitHub repository.
+1.  **Create Cluster**: Go to [MongoDB Atlas](https://www.mongodb.com/atlas) and create a cluster.
+2.  **Get Connection String**:
+    *   Click **Connect** on your cluster.
+    *   Select **Drivers**.
+    *   Copy the connection string (e.g., `mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority`).
+3.  **Network Access**:
+    *   Go to **Network Access** in the Atlas sidebar.
+    *   Click **Add IP Address**.
+    *   Select **Allow Access from Anywhere** (0.0.0.0/0). *This is required because Vercel's IP addresses are dynamic.*
+4.  **Add to Vercel**:
+    *   Go to your Vercel Project Dashboard -> **Settings** -> **Environment Variables**.
+    *   Add a new variable named `MONGODB_URL`.
+    *   Paste your Atlas connection string (replace `<username>` and `<password>` with your actual credentials).
 
-### 3. Configure Environment Variables
+## 4. Other Environment Variables
 
-In the "Configure Project" screen, add the following Environment Variables (copy from your `.env` but use production values):
+In Vercel **Settings** -> **Environment Variables**, ensure you also have:
 
-*   `DATABASE_URL`: Your hosted PostgreSQL connection string.
-    *   *Format*: `postgresql://user:password@host:port/database`
-    *   *Note*: Ensure it uses `postgresql://` (the app handles the conversion to `postgresql+asyncpg://`).
-*   `MONGODB_URL`: Your hosted MongoDB connection string.
 *   `JWT_SECRET_KEY`: Generate a secure random string (e.g., `openssl rand -hex 32`).
-*   `JWT_ALGORITHM`: `HS256`
-*   `ACCESS_TOKEN_EXPIRE_MINUTES`: `30` (or your preference)
 *   `GROQ_API_KEY`: Your Groq API key.
 *   `GRAPHHOPPER_API_KEY`: Your GraphHopper API key.
-*   `GROQ_MODEL`: `llama-3.3-70b-versatile` (or your preferred model).
+*   `GROQ_MODEL`: `llama-3.3-70b-versatile`
 
-### 4. Deploy
+## 5. Redeploy
 
-1.  Click **"Deploy"**.
-2.  Vercel will build the project and install dependencies from `requirements.txt`.
-3.  Once deployed, you will get a public URL (e.g., `https://your-project.vercel.app`).
+After adding all environment variables (`DATABASE_URL`, `MONGODB_URL`, and the keys):
 
-### 5. Verify Deployment
-
-*   Visit `https://your-project.vercel.app/docs` to see the API documentation.
-*   The frontend should be available at the root URL `https://your-project.vercel.app`.
-
-## Troubleshooting
-
-*   **Database Connection Errors**: Ensure your database allows connections from Vercel's IP addresses (set to "Allow all" or "0.0.0.0/0" for testing).
-*   **Missing Dependencies**: Check the "Build Logs" in Vercel if the deployment fails.
-*   **Static Files**: If the frontend doesn't load, ensure the `static` folder is present in the repository.
+1.  Go to the **Deployments** tab in Vercel.
+2.  Click the three dots (`...`) next to your latest deployment (or the failed one) and select **Redeploy**.
+3.  Ensure **Redeploy** is checked (not "Redeploy with existing build cache" if you want to be safe, though usually fine).
