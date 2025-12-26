@@ -2,16 +2,19 @@
 Main FastAPI Application
 Combines all routers and middleware
 """
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 import os
 from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from .config import settings
 from .routers import auth, trips, config, feedback, users
+from .database import get_db
 
 
 # Create FastAPI application
@@ -86,17 +89,20 @@ app.include_router(users.router)
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
-async def health_check():
+async def health_check(db: AsyncSession = Depends(get_db)):
     """
     Health check endpoint
     
     Returns the health status of the application.
     Can be expanded to check database connectivity.
     """
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    db_ok = False
+    try:
+        await db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return {"status": "healthy", "db_connected": db_ok, "timestamp": datetime.utcnow().isoformat()}
 
 
 # Mount static files only if directory exists (serverless-safe)
