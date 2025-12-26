@@ -8,6 +8,7 @@ from sqlalchemy import text
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import AsyncGenerator
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+import ssl
 from .config import settings
 
 # PostgreSQL Setup
@@ -24,8 +25,19 @@ def _normalize_url(url: str):
     keys = {k.lower(): k for k in query.keys()}
     if "sslmode" in keys:
         mode = query[keys["sslmode"]][0]
-        if mode in ("require", "verify-full", "verify-ca", "prefer"):
-            args["ssl"] = True
+        if mode in ("require", "prefer"):
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            args["ssl"] = ctx
+        elif mode == "verify-full":
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = True
+            args["ssl"] = ctx
+        elif mode == "verify-ca":
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            args["ssl"] = ctx
         elif mode == "disable":
             args["ssl"] = False
         query.pop(keys["sslmode"], None)
