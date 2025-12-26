@@ -7,24 +7,44 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import AsyncGenerator
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from .config import settings
 
 # PostgreSQL Setup
 # Normalize URL to async driver
 database_url = settings.DATABASE_URL or settings.POSTGRES_URL
+connect_args = {}
 if database_url:
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    parsed = urlparse(database_url)
+    query = parse_qs(parsed.query)
+    if "sslmode" in query:
+        mode = query.get("sslmode", ["require"])[0]
+        if mode in ("require", "verify-full", "verify-ca", "prefer"):
+            connect_args["ssl"] = True
+        elif mode == "disable":
+            connect_args["ssl"] = False
+        query.pop("sslmode", None)
+        new_query = urlencode({k: v[0] for k, v in query.items()})
+        database_url = urlunparse(parsed._replace(query=new_query))
 
 if database_url:
-    engine = create_async_engine(
-        database_url,
-        echo=settings.DEBUG,
-        future=True
-    )
-    
+    if connect_args:
+        engine = create_async_engine(
+            database_url,
+            echo=settings.DEBUG,
+            future=True,
+            connect_args=connect_args
+        )
+    else:
+        engine = create_async_engine(
+            database_url,
+            echo=settings.DEBUG,
+            future=True
+        )
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,

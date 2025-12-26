@@ -121,7 +121,6 @@ async def startup_event():
             print("Database initialized successfully")
     except Exception as e:
         print(f"Error initializing database: {e}")
-        raise
 
 
 # Shutdown event
