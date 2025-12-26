@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Database Configuration
     DATABASE_URL: Optional[str] = None
     POSTGRES_URL: Optional[str] = None  # Vercel Postgres variable
+    POSTGRES_URL_NON_POOLING: Optional[str] = None
     MONGODB_URL: Optional[str] = None
     MONGODB_URI: Optional[str] = None  # Vercel MongoDB Integration variable
     

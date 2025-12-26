@@ -12,39 +12,40 @@ from .config import settings
 
 # PostgreSQL Setup
 # Normalize URL to async driver
+def _normalize_url(url: str):
+    args = {}
+    u = url
+    if u.startswith("postgres://"):
+        u = u.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif u.startswith("postgresql://"):
+        u = u.replace("postgresql://", "postgresql+asyncpg://", 1)
+    parsed = urlparse(u)
+    query = parse_qs(parsed.query)
+    keys = {k.lower(): k for k in query.keys()}
+    if "sslmode" in keys:
+        mode = query[keys["sslmode"]][0]
+        if mode in ("require", "verify-full", "verify-ca", "prefer"):
+            args["ssl"] = True
+        elif mode == "disable":
+            args["ssl"] = False
+        query.pop(keys["sslmode"], None)
+    # strip other unknown params to avoid driver issues
+    new_query = urlencode({k: v[0] for k, v in query.items()})
+    u = urlunparse(parsed._replace(query=new_query))
+    return u, args
+
 database_url = settings.DATABASE_URL or settings.POSTGRES_URL
 connect_args = {}
 if database_url:
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif database_url.startswith("postgresql://"):
-        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    parsed = urlparse(database_url)
-    query = parse_qs(parsed.query)
-    if "sslmode" in query:
-        mode = query.get("sslmode", ["require"])[0]
-        if mode in ("require", "verify-full", "verify-ca", "prefer"):
-            connect_args["ssl"] = True
-        elif mode == "disable":
-            connect_args["ssl"] = False
-        query.pop("sslmode", None)
-        new_query = urlencode({k: v[0] for k, v in query.items()})
-        database_url = urlunparse(parsed._replace(query=new_query))
+    database_url, connect_args = _normalize_url(database_url)
 
 if database_url:
-    if connect_args:
-        engine = create_async_engine(
-            database_url,
-            echo=settings.DEBUG,
-            future=True,
-            connect_args=connect_args
-        )
-    else:
-        engine = create_async_engine(
-            database_url,
-            echo=settings.DEBUG,
-            future=True
-        )
+    engine = create_async_engine(
+        database_url,
+        echo=settings.DEBUG,
+        future=True,
+        connect_args=connect_args or None
+    )
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
@@ -99,16 +100,31 @@ async def init_db():
     """Initialize database tables"""
     if not engine:
         return
-        
-    async with engine.begin() as conn:
-        from . import models
-        try:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
-        except Exception as e:
-            if settings.DEBUG:
-                print(f"PostGIS extension setup failed: {e}")
-        try:
-            await conn.run_sync(Base.metadata.create_all)
-        except Exception as e:
-            if settings.DEBUG:
-                print(f"Table creation failed: {e}")
+    # prefer non-pooling URL for DDL if available
+    init_url = settings.POSTGRES_URL_NON_POOLING or (settings.DATABASE_URL or settings.POSTGRES_URL)
+    init_args = {}
+    if init_url:
+        init_url, init_args = _normalize_url(init_url)
+    init_engine = None
+    try:
+        init_engine = create_async_engine(
+            init_url,
+            echo=settings.DEBUG,
+            future=True,
+            connect_args=init_args or None
+        ) if init_url else engine
+        async with init_engine.begin() as conn:
+            from . import models
+            try:
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+            except Exception as e:
+                if settings.DEBUG:
+                    print(f"PostGIS extension setup failed: {e}")
+            try:
+                await conn.run_sync(Base.metadata.create_all)
+            except Exception as e:
+                if settings.DEBUG:
+                    print(f"Table creation failed: {e}")
+    finally:
+        if init_engine and init_engine is not engine:
+            await init_engine.dispose()
