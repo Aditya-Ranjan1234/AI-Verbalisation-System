@@ -38,8 +38,10 @@ Base = declarative_base()
 mongodb_client = None
 mongodb = None
 
-if settings.MONGODB_URL:
-    mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
+mongodb_url = settings.MONGODB_URL or settings.MONGODB_URI
+
+if mongodb_url:
+    mongodb_client = AsyncIOMotorClient(mongodb_url)
     mongodb = mongodb_client.trip_verbalization
 
 

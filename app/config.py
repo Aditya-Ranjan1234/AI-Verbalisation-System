@@ -3,25 +3,26 @@ Application Configuration
 Environment-based settings using Pydantic BaseSettings
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
     # Database Configuration
-    DATABASE_URL: str | None = None
-    POSTGRES_URL: str | None = None  # Vercel Postgres variable
-    MONGODB_URL: str | None = None
+    DATABASE_URL: Optional[str] = None
+    POSTGRES_URL: Optional[str] = None  # Vercel Postgres variable
+    MONGODB_URL: Optional[str] = None
+    MONGODB_URI: Optional[str] = None  # Vercel MongoDB Integration variable
     
     # Security & Authentication
-    JWT_SECRET_KEY: str | None = None
+    JWT_SECRET_KEY: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # External API Keys
-    GRAPHHOPPER_API_KEY: str | None = None
-    GROQ_API_KEY: str | None = None
+    GRAPHHOPPER_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GEOCODING_API_KEY: str = "" # Keep for backward compatibility if needed
     LLM_API_KEY: str = "" # Keep for backward compatibility if needed

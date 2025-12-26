@@ -1,54 +1,50 @@
-# Hosting on Vercel with Supabase & MongoDB Atlas
+# Hosting on Vercel with Integrations
 
-This project is configured for deployment on Vercel, using **Supabase** for the relational database (PostgreSQL) and **MongoDB Atlas** for the NoSQL database.
+This project is configured for deployment on Vercel. You can use **Vercel Integrations** to easily connect Supabase (Postgres) and MongoDB Atlas without manually copying many environment variables.
 
 ## 1. Deploy Code
 
 1.  Push your code to GitHub.
 2.  Import the project in Vercel.
-3.  Deploy. (The build might fail initially if environment variables are missing; this is normal).
+3.  Deploy. (The build might fail initially; this is expected until we add the databases).
 
-## 2. Set Up Supabase (PostgreSQL)
+## 2. Set Up Supabase (PostgreSQL) via Integration
 
-Since you are using Supabase for the PostgreSQL database:
+1.  Go to your **Vercel Project Dashboard**.
+2.  Click the **Settings** tab -> **Integrations**.
+3.  Click **Browse Marketplace**.
+4.  Search for **Supabase** and click **Add Integration**.
+5.  Select your Vercel account and the project you just created.
+6.  Follow the prompts to:
+    *   **Connect** to an existing Supabase project, OR
+    *   **Create** a new Supabase project directly from the interface.
+7.  Once connected, this will automatically add environment variables like `SUPABASE_URL` and `SUPABASE_KEY` to your project.
+    *   **Important Check**: Go to **Settings** -> **Environment Variables**. Check if `DATABASE_URL` is present.
+    *   **If `DATABASE_URL` is missing**: You must manually add it.
+        1.  Go to your [Supabase Dashboard](https://supabase.com/dashboard).
+        2.  Go to **Project Settings** -> **Database**.
+        3.  Copy the **URI** connection string (e.g., `postgresql://postgres...`).
+        4.  Add it as a new environment variable named `DATABASE_URL` in Vercel.
 
-1.  **Create Project**: Go to [Supabase](https://supabase.com/) and create a new project.
-2.  **Enable PostGIS**:
-    *   Go to the **SQL Editor** in the left sidebar.
-    *   Click **New Query**.
-    *   Run: `CREATE EXTENSION IF NOT EXISTS postgis;`
-    *   Click **Run**.
-3.  **Get Connection String**:
-    *   Go to **Project Settings** (gear icon) -> **Database**.
-    *   Under **Connection string**, make sure **URI** is selected.
-    *   Copy the connection string. It looks like: `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`.
-    *   *Tip*: Use the "Transaction" pooler (port 6543) if available, or "Session" (port 5432) if you encounter issues. For this async Python app, the standard connection string often works best.
-4.  **Add to Vercel**:
-    *   Go to your Vercel Project Dashboard -> **Settings** -> **Environment Variables**.
-    *   Add a new variable named `DATABASE_URL`.
-    *   Paste your Supabase connection string as the value (replace `[password]` with your actual database password).
+### Enable PostGIS (Required)
+The integration does not enable extensions for you.
+1.  Go to your Supabase Dashboard -> **SQL Editor**.
+2.  Run: `CREATE EXTENSION IF NOT EXISTS postgis;`
 
-## 3. Set Up MongoDB Atlas
+## 3. Set Up MongoDB Atlas via Integration
 
-Since you are using MongoDB Atlas:
-
-1.  **Create Cluster**: Go to [MongoDB Atlas](https://www.mongodb.com/atlas) and create a cluster.
-2.  **Get Connection String**:
-    *   Click **Connect** on your cluster.
-    *   Select **Drivers**.
-    *   Copy the connection string (e.g., `mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority`).
-3.  **Network Access**:
-    *   Go to **Network Access** in the Atlas sidebar.
-    *   Click **Add IP Address**.
-    *   Select **Allow Access from Anywhere** (0.0.0.0/0). *This is required because Vercel's IP addresses are dynamic.*
-4.  **Add to Vercel**:
-    *   Go to your Vercel Project Dashboard -> **Settings** -> **Environment Variables**.
-    *   Add a new variable named `MONGODB_URL`.
-    *   Paste your Atlas connection string (replace `<username>` and `<password>` with your actual credentials).
+1.  Go to your **Vercel Project Dashboard**.
+2.  Click the **Settings** tab -> **Integrations**.
+3.  Click **Browse Marketplace**.
+4.  Search for **MongoDB Atlas** and click **Add Integration**.
+5.  Select your Vercel account and project.
+6.  Follow the prompts to log in to MongoDB Atlas and select your cluster.
+7.  This will automatically add the `MONGODB_URI` environment variable to your project.
+    *   *Note*: The app is updated to recognize `MONGODB_URI` automatically.
 
 ## 4. Other Environment Variables
 
-In Vercel **Settings** -> **Environment Variables**, ensure you also have:
+Go to **Settings** -> **Environment Variables** and ensure you have these manual variables:
 
 *   `JWT_SECRET_KEY`: Generate a secure random string (e.g., `openssl rand -hex 32`).
 *   `GROQ_API_KEY`: Your Groq API key.
@@ -57,8 +53,6 @@ In Vercel **Settings** -> **Environment Variables**, ensure you also have:
 
 ## 5. Redeploy
 
-After adding all environment variables (`DATABASE_URL`, `MONGODB_URL`, and the keys):
-
-1.  Go to the **Deployments** tab in Vercel.
-2.  Click the three dots (`...`) next to your latest deployment (or the failed one) and select **Redeploy**.
-3.  Ensure **Redeploy** is checked (not "Redeploy with existing build cache" if you want to be safe, though usually fine).
+1.  Go to the **Deployments** tab.
+2.  Click the three dots (`...`) next to your latest deployment.
+3.  Select **Redeploy**.
