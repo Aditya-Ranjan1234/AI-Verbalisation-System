@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+import os
 from datetime import datetime
 
 from .config import settings
@@ -98,8 +99,9 @@ async def health_check():
     }
 
 
-# Mount static files (must be last to not override API routes)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# Mount static files only if directory exists (serverless-safe)
+if os.path.isdir(os.path.join(os.path.dirname(__file__), "..", "static")) or os.path.isdir("static"):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 
 # Startup event
