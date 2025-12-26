@@ -2,108 +2,133 @@
 const API_BASE = '';
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
+let currentTripId = null; // Store current trip ID for navigation
+let navMap = null; // Store navigation map instance
+let routingControl = null; // Store routing control instance
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     initAuth();
     initEventListeners();
+    initMap(); // Initialize map
     if (authToken) {
         loadUserData();
     }
+    
+    // Add new event listeners
+    const speakBtn = document.getElementById('speakStoryBtn');
+    if (speakBtn) speakBtn.addEventListener('click', speakStory);
+    
+    const navBtn = document.getElementById('startNavBtn');
+    if (navBtn) navBtn.addEventListener('click', startNavigation);
 });
 
-// Event Listeners
+let map;
+let startMarker;
+let endMarker;
+
+function initMap() {
+    // Default to a central location (e.g., London or User's location if available)
+    map = L.map('map').setView([51.505, -0.09], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    map.on('click', function(e) {
+        // Check if create trip modal is open by checking visibility of map container parent
+        const modal = document.getElementById('createTripModal');
+        if (!modal.classList.contains('active')) return;
+
+        const mode = document.querySelector('input[name="mapMode"]:checked').value;
+        const lat = e.latlng.lat.toFixed(4);
+        const lng = e.latlng.lng.toFixed(4);
+
+        if (mode === 'start') {
+            document.getElementById('startLat').value = lat;
+            document.getElementById('startLon').value = lng;
+            
+            if (startMarker) map.removeLayer(startMarker);
+            startMarker = L.marker([lat, lng], {title: "Start"}).addTo(map);
+        } else {
+            document.getElementById('endLat').value = lat;
+            document.getElementById('endLon').value = lng;
+            
+            if (endMarker) map.removeLayer(endMarker);
+            endMarker = L.marker([lat, lng], {title: "End"}).addTo(map);
+        }
+    });
+}
+
 function initEventListeners() {
-    // Navigation
+    // Navigation Links
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
-            if (!e.target.hasAttribute('target')) {
+            if (link.getAttribute('href').startsWith('#')) {
                 e.preventDefault();
-                const target = e.target.getAttribute('href').substring(1);
-                showSection(target);
+                const sectionId = link.getAttribute('href').substring(1);
+                showSection(sectionId);
             }
         });
     });
 
-    // Auth buttons
-    document.getElementById('showLoginBtn')?.addEventListener('click', () => showModal('loginModal'));
-    document.getElementById('showRegisterBtn')?.addEventListener('click', () => showModal('registerModal'));
-    document.getElementById('logoutBtn')?.addEventListener('click', logout);
-    document.getElementById('getStartedBtn')?.addEventListener('click', () => {
-        if (authToken) {
-            showSection('trips');
-        } else {
-            showModal('loginModal');
-        }
+    // Modals
+    document.querySelectorAll('[data-modal]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modalId = btn.getAttribute('data-modal');
+            hideModal(modalId);
+        });
     });
 
-    // Modal switches
-    document.getElementById('switchToRegister')?.addEventListener('click', (e) => {
+    document.getElementById('showLoginBtn').addEventListener('click', () => showModal('loginModal'));
+    document.getElementById('showRegisterBtn').addEventListener('click', () => showModal('registerModal'));
+    document.getElementById('createTripBtn').addEventListener('click', () => {
+        showModal('createTripModal');
+        setTimeout(() => map.invalidateSize(), 100); // Fix map render
+    });
+    document.getElementById('createZoneBtn').addEventListener('click', () => showModal('createZoneModal'));
+    
+    document.getElementById('switchToRegister').addEventListener('click', (e) => {
         e.preventDefault();
         hideModal('loginModal');
         showModal('registerModal');
     });
-    document.getElementById('switchToLogin')?.addEventListener('click', (e) => {
+    
+    document.getElementById('switchToLogin').addEventListener('click', (e) => {
         e.preventDefault();
         hideModal('registerModal');
         showModal('loginModal');
     });
 
-    // Modal close buttons
-    document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const modalId = e.target.getAttribute('data-modal');
-            hideModal(modalId);
-        });
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    document.getElementById('getStartedBtn').addEventListener('click', () => {
+        if (authToken) {
+            showSection('trips');
+        } else {
+            showModal('registerModal');
+        }
     });
 
     // Forms
-    document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
-    document.getElementById('registerForm')?.addEventListener('submit', handleRegister);
-    document.getElementById('createTripBtn')?.addEventListener('click', () => showModal('createTripModal'));
-    document.getElementById('createTripForm')?.addEventListener('submit', handleCreateTrip);
-    document.getElementById('createZoneBtn')?.addEventListener('click', () => showModal('createZoneModal'));
-    document.getElementById('createZoneForm')?.addEventListener('submit', handleCreateZone);
-
-    // Close modals on backdrop click
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
-    });
+    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    document.getElementById('registerForm').addEventListener('submit', handleRegister);
+    document.getElementById('createTripForm').addEventListener('submit', handleCreateTrip);
+    document.getElementById('createZoneForm').addEventListener('submit', handleCreateZone);
 }
 
 // Authentication
 function initAuth() {
+    const navUser = document.getElementById('navUser');
+    const navAuth = document.getElementById('navAuth');
+    
     if (authToken) {
-        document.getElementById('navAuth').style.display = 'none';
-        document.getElementById('navUser').style.display = 'flex';
+        navUser.style.display = 'flex';
+        navAuth.style.display = 'none';
+        showSection('trips');
     } else {
-        document.getElementById('navAuth').style.display = 'flex';
-        document.getElementById('navUser').style.display = 'none';
-    }
-}
-
-async function loadUserData() {
-    try {
-        const response = await fetch('/auth/me', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
-        });
-
-        if (response.ok) {
-            currentUser = await response.json();
-            document.getElementById('userName').textContent = currentUser.username;
-            loadDashboardData();
-        } else {
-            logout();
-        }
-    } catch (error) {
-        console.error('Error loading user data:', error);
-        logout();
+        navUser.style.display = 'none';
+        navAuth.style.display = 'flex';
+        showSection('home');
     }
 }
 
@@ -111,16 +136,17 @@ async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
+    const errorDiv = document.getElementById('loginError');
 
     try {
         const formData = new URLSearchParams();
         formData.append('username', username);
         formData.append('password', password);
 
-        const response = await fetch('/auth/login', {
+        const response = await fetch('/auth/token', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: formData
         });
@@ -130,16 +156,18 @@ async function handleLogin(e) {
             authToken = data.access_token;
             localStorage.setItem('authToken', authToken);
             hideModal('loginModal');
-            showToast('Login successful!', 'success');
-            initAuth();
+            document.getElementById('loginForm').reset();
             loadUserData();
-            showSection('trips');
+            initAuth();
+            showToast('Login successful!');
         } else {
             const error = await response.json();
-            showError('loginError', error.detail || 'Login failed');
+            errorDiv.textContent = error.detail || 'Login failed';
+            errorDiv.classList.add('active');
         }
     } catch (error) {
-        showError('loginError', 'Network error. Please try again.');
+        errorDiv.textContent = 'Network error occurred';
+        errorDiv.classList.add('active');
     }
 }
 
@@ -149,52 +177,86 @@ async function handleRegister(e) {
     const email = document.getElementById('regEmail').value;
     const password = document.getElementById('regPassword').value;
     const role = document.getElementById('regRole').value;
+    const errorDiv = document.getElementById('registerError');
 
     try {
-        const response = await fetch('/auth/register', {
+        const response = await fetch('/auth/signup', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({ username, email, password, role })
         });
 
         if (response.ok) {
-            showToast('Registration successful! Please login.', 'success');
-            hideModal('registerModal');
-            showModal('loginModal');
-            document.getElementById('loginUsername').value = username;
+            // Auto login after register
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            const loginResponse = await fetch('/auth/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            });
+
+            if (loginResponse.ok) {
+                const data = await loginResponse.json();
+                authToken = data.access_token;
+                localStorage.setItem('authToken', authToken);
+                hideModal('registerModal');
+                document.getElementById('registerForm').reset();
+                loadUserData();
+                initAuth();
+                showToast('Registration successful!');
+            }
         } else {
             const error = await response.json();
-            showError('registerError', error.detail || 'Registration failed');
+            errorDiv.textContent = error.detail || 'Registration failed';
+            errorDiv.classList.add('active');
         }
     } catch (error) {
-        showError('registerError', 'Network error. Please try again.');
+        errorDiv.textContent = 'Network error occurred';
+        errorDiv.classList.add('active');
     }
 }
 
-function logout() {
+function handleLogout() {
     authToken = null;
     currentUser = null;
     localStorage.removeItem('authToken');
     initAuth();
-    showSection('home');
-    showToast('Logged out successfully', 'success');
+    showToast('Logged out successfully');
+}
+
+async function loadUserData() {
+    try {
+        const response = await fetch('/users/me', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (response.ok) {
+            currentUser = await response.json();
+            document.getElementById('userName').textContent = currentUser.username;
+            loadTrips();
+            loadDashboardData();
+        } else {
+            handleLogout(); // Token invalid
+        }
+    } catch (error) {
+        console.error('Error loading user data:', error);
+    }
 }
 
 // Trip Management
 async function handleCreateTrip(e) {
     e.preventDefault();
-
-    const tripData = {
-        start_lat: parseFloat(document.getElementById('startLat').value),
-        start_lon: parseFloat(document.getElementById('startLon').value),
-        end_lat: parseFloat(document.getElementById('endLat').value),
-        end_lon: parseFloat(document.getElementById('endLon').value),
-        start_time: document.getElementById('startTime').value,
-        end_time: document.getElementById('endTime').value,
-        route_points: []
-    };
+    
+    const startLat = parseFloat(document.getElementById('startLat').value);
+    const startLon = parseFloat(document.getElementById('startLon').value);
+    const endLat = parseFloat(document.getElementById('endLat').value);
+    const endLon = parseFloat(document.getElementById('endLon').value);
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
 
     try {
         const response = await fetch('/trips/', {
@@ -203,29 +265,35 @@ async function handleCreateTrip(e) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify(tripData)
+            body: JSON.stringify({
+                start_lat: startLat,
+                start_lon: startLon,
+                end_lat: endLat,
+                end_lon: endLon,
+                start_time: startTime,
+                end_time: endTime
+            })
         });
 
         if (response.ok) {
-            showToast('Trip created successfully!', 'success');
+            showToast('Trip created successfully!');
             hideModal('createTripModal');
             document.getElementById('createTripForm').reset();
             loadTrips();
+            loadDashboardData();
         } else {
             const error = await response.json();
-            showError('createTripError', error.detail?.[0]?.msg || 'Failed to create trip');
+            showError('createTripError', error.detail || 'Failed to create trip');
         }
     } catch (error) {
-        showError('createTripError', 'Network error. Please try again.');
+        showError('createTripError', 'Network error occurred');
     }
 }
 
 async function loadTrips() {
     try {
         const response = await fetch('/trips/', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
+            headers: { 'Authorization': `Bearer ${authToken}` }
         });
 
         if (response.ok) {
@@ -285,10 +353,19 @@ function displayTrips(trips) {
 
 // Verbalization
 async function verbalizeTrip(tripId) {
+    currentTripId = tripId; // Store for navigation
     showModal('storyModal');
     document.getElementById('storyLoader').style.display = 'block';
     document.getElementById('storyText').innerHTML = '';
     document.getElementById('storyLocations').innerHTML = '';
+    
+    // Reset Navigation UI
+    document.getElementById('navContainer').style.display = 'none';
+    if (navMap) {
+        navMap.remove();
+        navMap = null;
+    }
+    document.getElementById('navMap').innerHTML = '';
 
     try {
         const response = await fetch(`/trips/${tripId}/verbalize`, {
@@ -481,4 +558,107 @@ function calculateDuration(start, end) {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
+}
+
+// Text-to-Speech
+function speakStory() {
+    const text = document.getElementById('storyText').innerText;
+    if (!text) return;
+
+    // Cancel any current speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    // Try to select a good English voice
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(v => v.lang.includes('en-') && v.name.includes('Google')) || voices.find(v => v.lang.includes('en'));
+    if (englishVoice) {
+        utterance.voice = englishVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+}
+
+// Live Navigation
+async function startNavigation() {
+    if (!currentTripId) return;
+    
+    const navContainer = document.getElementById('navContainer');
+    navContainer.style.display = 'block';
+    
+    // fetch trip details to get destination coordinates
+    try {
+        const response = await fetch(`/trips/${currentTripId}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch trip details');
+        
+        const trip = await response.json();
+        const destLat = trip.end_lat;
+        const destLon = trip.end_lon;
+        
+        if (navMap) {
+            navMap.remove();
+        }
+        
+        // Initialize Map
+        navMap = L.map('navMap').setView([destLat, destLon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(navMap);
+        
+        // Get Current Location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLon = position.coords.longitude;
+                    
+                    // Start Routing
+                    routingControl = L.Routing.control({
+                        waypoints: [
+                            L.latLng(userLat, userLon),
+                            L.latLng(destLat, destLon)
+                        ],
+                        routeWhileDragging: false,
+                        showAlternatives: true,
+                        fitSelectedRoutes: true,
+                        lineOptions: {
+                            styles: [{color: '#6366f1', opacity: 0.8, weight: 6}]
+                        }
+                    }).addTo(navMap);
+                    
+                    document.getElementById('navStatus').innerText = "Navigation Started. Follow the route.";
+                    
+                    // Speak Instructions
+                    routingControl.on('routesfound', function(e) {
+                        const routes = e.routes;
+                        const summary = routes[0].summary;
+                        const firstInstruction = routes[0].instructions[0];
+                        
+                        // Speak summary
+                        const speech = `Navigation started. Distance is ${(summary.totalDistance / 1000).toFixed(1)} kilometers. ${firstInstruction.text}`;
+                        
+                        // Speak
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(speech);
+                        window.speechSynthesis.speak(utterance);
+                    });
+                },
+                (error) => {
+                    showError('navStatus', "Error getting location: " + error.message);
+                }
+            );
+        } else {
+            showError('navStatus', "Geolocation is not supported by this browser.");
+        }
+        
+    } catch (error) {
+        console.error(error);
+        document.getElementById('navStatus').innerText = "Error initializing navigation.";
+    }
 }

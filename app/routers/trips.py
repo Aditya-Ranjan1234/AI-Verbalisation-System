@@ -51,7 +51,15 @@ async def create_trip(
             sequence += 1
             
     await db.commit()
-    await db.refresh(new_trip)
+    
+    # Capture ID and expire session to force reload of Geometry columns (which are strings currently)
+    trip_id = new_trip.trip_id
+    db.expire_all()
+    
+    # Reload trip with route points to prevent MissingGreenlet error
+    query = select(Trip).options(selectinload(Trip.route_points)).where(Trip.trip_id == trip_id)
+    result = await db.execute(query)
+    new_trip = result.scalars().first()
     
     return new_trip
 
@@ -65,7 +73,7 @@ async def list_trips(
     """
     List user's trips.
     """
-    query = select(Trip).where(Trip.user_id == current_user.user_id).offset(skip).limit(limit)
+    query = select(Trip).options(selectinload(Trip.route_points)).where(Trip.user_id == current_user.user_id).offset(skip).limit(limit)
     result = await db.execute(query)
     trips = result.scalars().all()
     return trips

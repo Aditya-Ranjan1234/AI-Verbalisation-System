@@ -5,6 +5,7 @@ Endpoints for zones and regions (analyst/admin only)
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..database import get_db
@@ -205,9 +206,23 @@ async def create_region(
         db.add(mapping)
     
     await db.commit()
-    await db.refresh(db_region)
     
-    return db_region
+    # Reload with zones for response
+    stmt = select(models.Region).options(
+        selectinload(models.Region.zones).selectinload(models.RegionZone.zone)
+    ).where(models.Region.region_id == db_region.region_id)
+    
+    result = await db.execute(stmt)
+    db_region = result.scalars().first()
+    
+    # Manually construct response to handle association object
+    return schemas.RegionResponse(
+        region_id=db_region.region_id,
+        name=db_region.name,
+        description=db_region.description,
+        created_at=db_region.created_at,
+        zones=[rz.zone for rz in db_region.zones]
+    )
 
 
 @router.get("/regions", response_model=List[schemas.RegionResponse])
@@ -223,7 +238,19 @@ async def list_regions(
     **Returns:**
     - List of all configured regions with their zones
     """
-    result = await db.execute(select(models.Region))
+    stmt = select(models.Region).options(
+        selectinload(models.Region.zones).selectinload(models.RegionZone.zone)
+    )
+    result = await db.execute(stmt)
     regions = result.scalars().all()
     
-    return regions
+    return [
+        schemas.RegionResponse(
+            region_id=r.region_id,
+            name=r.name,
+            description=r.description,
+            created_at=r.created_at,
+            zones=[rz.zone for rz in r.zones]
+        )
+        for r in regions
+    ]

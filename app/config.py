@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # External API Keys
     GRAPHHOPPER_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GEOCODING_API_KEY: str = "" # Keep for backward compatibility if needed
     LLM_API_KEY: str = "" # Keep for backward compatibility if needed
     

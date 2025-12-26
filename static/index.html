@@ -9,6 +9,29 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet Routing Machine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <style>
+        #map {
+            height: 300px;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            z-index: 1;
+        }
+        #navMap {
+            height: 400px;
+            width: 100%;
+            margin-top: 15px;
+            border-radius: 8px;
+            z-index: 1;
+        }
+    </style>
 </head>
 
 <body>
@@ -158,6 +181,16 @@
                 <button class="modal-close" data-modal="createTripModal">&times;</button>
             </div>
             <form id="createTripForm" class="form">
+                <div id="map"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Map Selection Mode</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="mapMode" value="start" checked> Set Start</label>
+                            <label><input type="radio" name="mapMode" value="end"> Set End</label>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="startLat">Start Latitude</label>
@@ -254,7 +287,12 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Trip Story</h2>
-                <button class="modal-close" data-modal="storyModal">&times;</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="speakStoryBtn" class="btn btn-outline" style="padding: 5px 10px;">
+                        🔊 Speak
+                    </button>
+                    <button class="modal-close" data-modal="storyModal">&times;</button>
+                </div>
             </div>
             <div class="story-content" style="padding: 2rem;">
                 <div id="storyLoader" style="text-align: center; display: none;">
@@ -269,6 +307,18 @@
                 <div id="storyText" style="line-height: 1.8; color: var(--dark);"></div>
                 <div id="storyLocations"
                     style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; font-size: 0.9em; color: var(--gray);">
+                </div>
+                
+                <!-- Live Navigation Section -->
+                <div class="navigation-section" style="margin-top: 2rem; padding-top: 1rem; border-top: 2px solid #f0f0f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>📍 Live Navigation</h3>
+                        <button id="startNavBtn" class="btn btn-primary">Start Navigation</button>
+                    </div>
+                    <div id="navContainer" style="display: none;">
+                        <p id="navStatus" style="color: var(--primary); font-weight: 500; margin-bottom: 0.5rem;">Locating you...</p>
+                        <div id="navMap"></div>
+                    </div>
                 </div>
             </div>
         </div>

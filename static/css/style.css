@@ -358,6 +358,29 @@ body {
     gap: 1rem;
 }
 
+/* Radio Group for Map Mode */
+.radio-group {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.5rem 0;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 0; /* Override form-group label margin */
+}
+
+.radio-group input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
 .form-group small {
     display: block;
     margin-top: 0.25rem;

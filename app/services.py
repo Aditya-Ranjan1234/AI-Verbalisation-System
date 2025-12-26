@@ -80,7 +80,7 @@ class LLMService:
                         "content": prompt
                     }
                 ],
-                model="mixtral-8x7b-32768",
+                model=settings.GROQ_MODEL,
                 temperature=0.7,
                 max_tokens=300,
             )
