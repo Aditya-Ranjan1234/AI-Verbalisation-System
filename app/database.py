@@ -10,10 +10,13 @@ from typing import AsyncGenerator
 from .config import settings
 
 # PostgreSQL Setup
-# Convert postgresql:// to postgresql+asyncpg:// for async support
+# Normalize URL to async driver
 database_url = settings.DATABASE_URL or settings.POSTGRES_URL
 if database_url:
-    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 if database_url:
     engine = create_async_engine(
