@@ -81,9 +81,14 @@ async def init_db():
         return
         
     async with engine.begin() as conn:
-        # Import all models before creating tables
         from . import models
-        await conn.run_sync(Base.metadata.create_all)
-        
-        # Check for PostGIS extension
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+        try:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+        except Exception as e:
+            if settings.DEBUG:
+                print(f"PostGIS extension setup failed: {e}")
+        try:
+            await conn.run_sync(Base.metadata.create_all)
+        except Exception as e:
+            if settings.DEBUG:
+                print(f"Table creation failed: {e}")
