@@ -313,3 +313,8 @@ class ErrorResponse(BaseModel):
     detail: str
     error_code: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+# Aliases for compatibility with Routers
+TripCreate = TripDataCreate
+TripResponse = TripDataResponse
+TripDetail = TripDataResponse

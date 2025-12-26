@@ -26,9 +26,7 @@ email-validator==2.1.0
 # Environment Configuration
 python-dotenv==1.0.0
 
-# HTTP Client for geocoding APIs
-httpx==0.26.0
-
 # Utilities
 python-dateutil==2.8.2
 shapely==2.1.2
+groq==0.4.2

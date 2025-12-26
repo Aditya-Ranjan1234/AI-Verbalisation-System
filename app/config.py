@@ -19,8 +19,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # External API Keys
-    GEOCODING_API_KEY: str = ""
-    LLM_API_KEY: str = ""
+    GRAPHHOPPER_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
+    GEOCODING_API_KEY: str = "" # Keep for backward compatibility if needed
+    LLM_API_KEY: str = "" # Keep for backward compatibility if needed
     
     # Application Settings
     APP_NAME: str = "AI Trip Data Verbalization System"

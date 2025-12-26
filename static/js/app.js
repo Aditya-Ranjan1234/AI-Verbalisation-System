@@ -239,7 +239,7 @@ async function loadTrips() {
 
 function displayTrips(trips) {
     const grid = document.getElementById('tripsGrid');
-    
+
     if (trips.length === 0) {
         grid.innerHTML = `
             <div class="empty-state">
@@ -272,9 +272,48 @@ function displayTrips(trips) {
                     <span class="info-label">Duration</span>
                     <span class="info-value">${calculateDuration(trip.start_time, trip.end_time)}</span>
                 </div>
+                <button onclick="verbalizeTrip(${trip.trip_id})" class="btn btn-outline btn-block" style="margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Verbalize Trip
+                </button>
             </div>
         </div>
     `).join('');
+}
+
+// Verbalization
+async function verbalizeTrip(tripId) {
+    showModal('storyModal');
+    document.getElementById('storyLoader').style.display = 'block';
+    document.getElementById('storyText').innerHTML = '';
+    document.getElementById('storyLocations').innerHTML = '';
+
+    try {
+        const response = await fetch(`/trips/${tripId}/verbalize`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('storyText').innerHTML = `<p>${data.story}</p>`;
+            document.getElementById('storyLocations').innerHTML = `
+                <strong>Start:</strong> ${data.start_address}<br>
+                <strong>End:</strong> ${data.end_address}
+            `;
+        } else {
+            const error = await response.json();
+            document.getElementById('storyText').innerHTML = `<p style="color: var(--danger)">${error.detail || 'Failed to generate story'}</p>`;
+        }
+    } catch (error) {
+        document.getElementById('storyText').innerHTML = `<p style="color: var(--danger)">Network error. Please try again.</p>`;
+    } finally {
+        document.getElementById('storyLoader').style.display = 'none';
+    }
 }
 
 // Zone Management
@@ -287,7 +326,7 @@ async function handleCreateZone(e) {
 
     try {
         const boundary = JSON.parse(boundaryText);
-        
+
         const response = await fetch('/config/zones', {
             method: 'POST',
             headers: {
@@ -330,7 +369,7 @@ async function loadZones() {
 
 function displayZones(zones) {
     const grid = document.getElementById('zonesGrid');
-    
+
     if (zones.length === 0) {
         grid.innerHTML = `
             <div class="empty-state">
@@ -386,13 +425,13 @@ function showSection(sectionId) {
     document.querySelectorAll('.section').forEach(section => {
         section.style.display = 'none';
     });
-    
+
     document.querySelector('.hero').style.display = sectionId === 'home' ? 'block' : 'none';
-    
+
     const section = document.getElementById(sectionId);
     if (section) {
         section.style.display = 'block';
-        
+
         if (sectionId === 'trips') loadTrips();
         if (sectionId === 'zones') loadZones();
     }
@@ -431,7 +470,7 @@ function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = `toast ${type} active`;
-    
+
     setTimeout(() => {
         toast.classList.remove('active');
     }, 3000);

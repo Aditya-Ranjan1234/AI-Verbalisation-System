@@ -34,6 +34,10 @@ class User(Base):
     api_logs = relationship("APIUsageLog", back_populates="user", cascade="all, delete-orphan")
 
 
+from geoalchemy2.shape import to_shape
+
+# ... (imports)
+
 class TripData(Base):
     """Trip Data - Primary trip information (BCNF)"""
     __tablename__ = "trip_data"
@@ -58,6 +62,22 @@ class TripData(Base):
     verbalized_trips = relationship("VerbalizedTrip", back_populates="trip", cascade="all, delete-orphan")
     feedbacks = relationship("Feedback", back_populates="trip", cascade="all, delete-orphan")
 
+    @property
+    def start_lat(self):
+        return to_shape(self.start_location).y
+
+    @property
+    def start_lon(self):
+        return to_shape(self.start_location).x
+
+    @property
+    def end_lat(self):
+        return to_shape(self.end_location).y
+
+    @property
+    def end_lon(self):
+        return to_shape(self.end_location).x
+
 
 class RoutePoint(Base):
     """Route Points - Individual GPS points along the trip (BCNF)"""
@@ -77,6 +97,14 @@ class RoutePoint(Base):
     
     # Relationships
     trip = relationship("TripData", back_populates="route_points")
+    
+    @property
+    def latitude(self):
+        return to_shape(self.location).y
+
+    @property
+    def longitude(self):
+        return to_shape(self.location).x
     
     # Composite index for efficient querying
     __table_args__ = (
