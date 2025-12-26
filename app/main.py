@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 
 from .config import settings
-from .routers import auth, trips, config, feedback
+from .routers import auth, trips, config, feedback, users
 
 
 # Create FastAPI application
@@ -80,6 +80,7 @@ app.include_router(auth.router)
 app.include_router(trips.router)
 app.include_router(config.router)
 app.include_router(feedback.router)
+app.include_router(users.router)
 
 
 # Health check endpoint
