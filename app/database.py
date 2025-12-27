@@ -33,12 +33,10 @@ def _normalize_url(url: str):
             ctx.verify_mode = ssl.CERT_NONE
             args["ssl"] = ctx
         query.pop(keys["sslmode"], None)
-    # strip other unknown params to avoid driver issues
-    new_query = urlencode({k: v[0] for k, v in query.items()})
-    u = urlunparse(parsed._replace(query=new_query))
+    u = urlunparse(parsed._replace(query=""))
     return u, args
 
-database_url = settings.DATABASE_URL or settings.POSTGRES_URL
+database_url = settings.POSTGRES_URL_NON_POOLING or settings.DATABASE_URL or settings.POSTGRES_URL
 connect_args = {}
 if database_url:
     database_url, connect_args = _normalize_url(database_url)
